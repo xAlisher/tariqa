@@ -20,4 +20,7 @@ Contents:
 
 ---
 
-*First entries coming after zero day — move-in day.*
+## Entries
+
+- [2026-04-05 — GitHub Infrastructure](2026-04-05-github-infrastructure.md)
+- [2026-04-06 — Obsidian Sync + Diana Onboarding](2026-04-06-obsidian-diana-onboarding.md)
