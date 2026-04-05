@@ -1,89 +1,85 @@
 # Skill: Telegram → Anqa Input Channel
 
-**What it does:** Connects a Telegram group to an AI agent (Anqa). Messages with trigger prefixes are processed by the agent, structured, and written to a markdown knowledge base.
+**What it does:** Connects a Telegram group to a session-based AI agent (Anqa). The agent processes messages, writes files to a markdown knowledge base, creates GitHub issues, and handles photos and PDFs.
 
-**Use case:** Family or team uses Telegram naturally. Agent captures decisions, open questions, tasks, and file attachments — no forms, no dashboards, no extra apps.
+**Use case:** Family or team uses Telegram naturally. Agent captures decisions, open questions, tasks, documents, and photos — no forms, no dashboards, no extra apps.
 
 **Input:** Russian or English (agent translates)
-**Output:** Structured markdown entries committed to git
+**Output:** Structured markdown entries committed to git, GitHub issues created via API
 
 ---
 
-## Triggers
+## How it works
 
-| Prefix | Action |
+1. `/anqa` starts a session — Anqa is listening
+2. Talk freely — she responds, writes files, creates issues
+3. `/done` ends the session (or it times out after 10 min of inactivity)
+
+## Commands
+
+| Command | Action |
 |---|---|
-| `/decision` | Log a decision |
+| `/anqa` | Start a conversation session |
+| `/decision` | Log a decision (starts session if needed) |
 | `/q` | Add an open question |
-| `/task` | Create a task |
+| `/task` | Create a task / GitHub issue |
 | `/note` | General note — agent decides where it lands |
-| `/file` | Process an attached PDF, image, or document |
+| `/vision` | Next photo will be analyzed by the agent |
+| `/status` | Current priorities and open questions |
+| `/help` | List all commands |
+| `/done` | End the current session |
 | `@anqa` | Ask the agent a question directly |
+
+Photos with captions and PDF files are processed automatically during an active session.
 
 ---
 
 ## Stack
 
-- Telegram Bot API (via BotFather)
-- n8n — webhook receiver + orchestration
-- Claude API — agent processing
-- Whisper (optional) — voice note transcription
+- Python (`python-telegram-bot`, `anthropic`, `gitpython`)
+- Claude API — agent processing (tool use for file writes, git, GitHub)
+- GitHub API — issue creation and label management
 - Git — vault commits
+- No orchestration layer needed — bot runs as a single Python process
 
 ---
 
-## Setup
+## Agent capabilities
 
-See full setup instructions: [telegram-bot setup](../../anqa/tools/telegram-bot.md) in the private vault.
+- **File writing** — creates and updates markdown files in the vault
+- **Git operations** — commits and pushes changes
+- **GitHub issues** — creates issues with labels from the project taxonomy
+- **Vision** — analyzes photos sent after `/vision` command
+- **PDF processing** — extracts and structures content from PDF attachments
+- **Session memory** — maintains conversation context within a session
 
 ---
 
-## Agent Prompt
+## Agent prompt structure
 
 ```
 You are Anqa, digital steward of Tariqa.
 
-Input may be in Russian. Always output in English.
-Translate faithfully — do not summarise away detail.
+CORE RULES:
+- Input may be in Russian. Always output in English.
+- Translate faithfully — do not summarise away detail.
+- Family health and safety is always the highest priority.
 
-MESSAGE TYPE: {{trigger}}
-MESSAGE: {{message_text}}
-SENDER: {{sender_name}}
-DATE: {{date}}
+COMMANDS:
+/decision → Extract: decision, owner, deadline, vector, reasoning
+/q        → Extract: question, owner, resolve-by, priority
+/task     → Extract: task, owner, due, vector → create GitHub issue
+/note     → Summarise, suggest target file
+/vision   → Analyze next photo
+/status   → Brief summary of open items and priorities
 
-Extract structured output based on message type:
+End structured outputs with:
+> React 👍 to confirm and write to vault, or reply to edit.
 
-FOR /decision:
-- Decision: [one clear sentence]
-- Owner: [who is responsible]
-- Deadline: [if mentioned, else "not specified"]
-- Vector(s): [which life/work domain this touches]
-- Reasoning: [why, if stated]
-
-FOR /q:
-- Question: [the open question]
-- Owner: [who holds it]
-- Resolve by: [deadline if mentioned]
-- Priority: critical / month-one / parked
-
-FOR /task:
-- Task title, owner, due date, domain
-
-FOR /note:
-- 1–3 sentence summary
-- Suggest which knowledge file it belongs in
-
-FOR /file:
-- Identify document type
-- Extract key structured data (amounts, dates, parties, terms)
-- Suggest which folder it belongs in
-
-FOR @anqa:
-- Answer directly from available context
-- Keep it short — this is a chat interface
-
-End every response (except @anqa) with:
-> React 👍 to confirm and write to vault, ✏️ to edit.
+TOOLS AVAILABLE:
+- write_file(path, content) — write to vault
+- git_commit_and_push(message) — commit and push
+- create_github_issue(title, body, labels) — create issue
 ```
 
 ---
